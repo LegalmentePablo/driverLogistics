@@ -5,22 +5,21 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.example.driverlogistics.ui.detail.DetailScreen
+import com.example.driverlogistics.ui.detail.DetailViewModel
+import com.example.driverlogistics.ui.detail.DetailViewModelFactory
 import com.example.driverlogistics.ui.home.HomeScreen
 import com.example.driverlogistics.ui.home.HomeViewModel
 import com.example.driverlogistics.ui.home.HomeViewModelFactory
@@ -50,6 +49,7 @@ class MainActivity : ComponentActivity() {
 private fun DriverLogisticsNavHost(homeViewModel: HomeViewModel) {
     val navController = rememberNavController()
     val uiState by homeViewModel.uiState.collectAsStateWithLifecycle()
+    val appContainer = (navController.context.applicationContext as DriverLogisticsApp).appContainer
 
     NavHost(navController = navController, startDestination = "home") {
         composable("home") {
@@ -66,21 +66,20 @@ private fun DriverLogisticsNavHost(homeViewModel: HomeViewModel) {
             arguments = listOf(navArgument("deliveryId") { type = NavType.StringType })
         ) { backStackEntry ->
             val deliveryId = backStackEntry.arguments?.getString("deliveryId").orEmpty()
-            DetailPlaceholderScreen(deliveryId = deliveryId)
-        }
-    }
-}
 
-@Composable
-private fun DetailPlaceholderScreen(deliveryId: String) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize(),
-        verticalArrangement = Arrangement.Center
-    ) {
-        Text(
-            text = "Detalle de entrega: $deliveryId",
-            modifier = Modifier.padding(horizontal = 16.dp)
-        )
+            val detailViewModel: DetailViewModel = viewModel(
+                factory = DetailViewModelFactory(
+                    deliveryId = deliveryId,
+                    observeDeliveryByIdUseCase = appContainer.observeDeliveryByIdUseCase,
+                    markDeliveryAsCompletedUseCase = appContainer.markDeliveryAsCompletedUseCase
+                )
+            )
+            val detailUiState by detailViewModel.uiState.collectAsStateWithLifecycle()
+
+            DetailScreen(
+                uiState = detailUiState,
+                onMarkAsDeliveredClick = detailViewModel::markAsDelivered
+            )
+        }
     }
 }
