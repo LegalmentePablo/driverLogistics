@@ -4,12 +4,14 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.example.driverlogistics.domain.usecase.ObserveDeliveriesUseCase
+import com.example.driverlogistics.domain.usecase.ResetDeliveriesUseCase
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 class HomeViewModel(
-    private val observeDeliveriesUseCase: ObserveDeliveriesUseCase
+    private val observeDeliveriesUseCase: ObserveDeliveriesUseCase,
+    private val resetDeliveriesUseCase: ResetDeliveriesUseCase
 ) : ViewModel() {
 
     private val _uiState = kotlinx.coroutines.flow.MutableStateFlow(HomeUiState(isLoading = true))
@@ -37,15 +39,36 @@ class HomeViewModel(
                 }
         }
     }
+
+    fun resetStatesForDev() {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true, errorMessage = null) }
+
+            runCatching {
+                resetDeliveriesUseCase()
+            }.onFailure {
+                _uiState.update {
+                    it.copy(
+                        isLoading = false,
+                        errorMessage = "No se pudieron reestablecer los estados"
+                    )
+                }
+            }
+        }
+    }
 }
 
 class HomeViewModelFactory(
-    private val observeDeliveriesUseCase: ObserveDeliveriesUseCase
+    private val observeDeliveriesUseCase: ObserveDeliveriesUseCase,
+    private val resetDeliveriesUseCase: ResetDeliveriesUseCase
 ) : ViewModelProvider.Factory {
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         if (modelClass.isAssignableFrom(HomeViewModel::class.java)) {
             @Suppress("UNCHECKED_CAST")
-            return HomeViewModel(observeDeliveriesUseCase) as T
+            return HomeViewModel(
+                observeDeliveriesUseCase = observeDeliveriesUseCase,
+                resetDeliveriesUseCase = resetDeliveriesUseCase
+            ) as T
         }
         throw IllegalArgumentException("Unknown ViewModel class: ${modelClass.name}")
     }

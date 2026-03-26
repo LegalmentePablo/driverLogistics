@@ -11,6 +11,9 @@ interface DeliveryDao {
     @Query("SELECT * FROM deliveries ORDER BY packageId")
     fun observeDeliveries(): Flow<List<DeliveryEntity>>
 
+    @Query("SELECT * FROM deliveries")
+    suspend fun getDeliveries(): List<DeliveryEntity>
+
     @Query("SELECT * FROM deliveries WHERE id = :deliveryId LIMIT 1")
     fun observeDeliveryById(deliveryId: String): Flow<DeliveryEntity?>
 

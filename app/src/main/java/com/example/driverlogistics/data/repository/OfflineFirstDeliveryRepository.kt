@@ -3,6 +3,8 @@ package com.example.driverlogistics.data.repository
 import com.example.driverlogistics.data.local.dao.DeliveryDao
 import com.example.driverlogistics.data.local.dao.PendingSyncActionDao
 import com.example.driverlogistics.data.local.entity.PendingSyncActionEntity
+import com.example.driverlogistics.data.local.entity.DeliveryEntity
+import com.example.driverlogistics.core.sync.SyncActionType
 import com.example.driverlogistics.data.local.mapper.toDeliveryEntity
 import com.example.driverlogistics.data.local.mapper.toDomain
 import com.example.driverlogistics.data.remote.FakeDeliveryRemoteDataSource
@@ -31,13 +33,33 @@ class OfflineFirstDeliveryRepository(
             entity?.toDomain()
         }
 
+    override fun observePendingSyncForDelivery(deliveryId: String): Flow<Boolean> =
+        pendingSyncActionDao.observeHasPendingActionForDelivery(deliveryId)
+
     override suspend fun refreshDeliveries() {
         try {
-            val remoteDeliveries = remoteDataSource.fetchDeliveries()
-            deliveryDao.upsertDeliveries(remoteDeliveries.map { it.toDeliveryEntity() })
+            val remoteDeliveries = remoteDataSource.fetchDeliveries().map { it.toDeliveryEntity() }
+            val localById = deliveryDao.getDeliveries().associateBy { it.id }
+
+            val mergedDeliveries = remoteDeliveries.map { remoteDelivery ->
+                val localDelivery = localById[remoteDelivery.id]
+                if (localDelivery?.status == DeliveryStatus.Delivered.name) {
+                    remoteDelivery.copy(status = DeliveryStatus.Delivered.name)
+                } else {
+                    remoteDelivery
+                }
+            }
+
+            deliveryDao.upsertDeliveries(mergedDeliveries)
         } catch (_: Exception) {
             // Keep existing local cache when remote refresh fails.
         }
+    }
+
+    override suspend fun resetDeliveriesToInitialState() {
+        val initialDeliveries = remoteDataSource.fetchDeliveries().map { it.toDeliveryEntity() }
+        deliveryDao.upsertDeliveries(initialDeliveries)
+        pendingSyncActionDao.clearAllPendingActions()
     }
 
     override suspend fun markDeliveryAsCompleted(deliveryId: String): MarkDeliveryCompletionResult {
@@ -50,7 +72,7 @@ class OfflineFirstDeliveryRepository(
             pendingSyncActionDao.insertPendingAction(
                 PendingSyncActionEntity(
                     deliveryId = deliveryId,
-                    actionType = ACTION_MARK_DELIVERED,
+                    actionType = SyncActionType.MARK_DELIVERED,
                     createdAtEpochMillis = System.currentTimeMillis()
                 )
             )
@@ -58,9 +80,5 @@ class OfflineFirstDeliveryRepository(
         }
 
         return MarkDeliveryCompletionResult.UpdatedLocally
-    }
-
-    private companion object {
-        const val ACTION_MARK_DELIVERED = "MARK_DELIVERED"
     }
 }

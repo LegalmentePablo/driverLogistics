@@ -29,7 +29,14 @@ import dagger.hilt.android.AndroidEntryPoint
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
     private val homeViewModel: HomeViewModel by viewModels {
-        HomeViewModelFactory((application as DriverLogisticsApp).appContainer.observeDeliveriesUseCase)
+        HomeViewModelFactory(
+            observeDeliveriesUseCase = (application as DriverLogisticsApp)
+                .appContainer
+                .observeDeliveriesUseCase,
+            resetDeliveriesUseCase = (application as DriverLogisticsApp)
+                .appContainer
+                .resetDeliveriesUseCase
+        )
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -55,6 +62,7 @@ private fun DriverLogisticsNavHost(homeViewModel: HomeViewModel) {
         composable("home") {
             HomeScreen(
                 uiState = uiState,
+                onDevResetClick = homeViewModel::resetStatesForDev,
                 onDeliveryClick = { deliveryId ->
                     navController.navigate("detail/$deliveryId")
                 }
@@ -71,6 +79,7 @@ private fun DriverLogisticsNavHost(homeViewModel: HomeViewModel) {
                 factory = DetailViewModelFactory(
                     deliveryId = deliveryId,
                     observeDeliveryByIdUseCase = appContainer.observeDeliveryByIdUseCase,
+                    observePendingSyncForDeliveryUseCase = appContainer.observePendingSyncForDeliveryUseCase,
                     markDeliveryAsCompletedUseCase = appContainer.markDeliveryAsCompletedUseCase
                 )
             )

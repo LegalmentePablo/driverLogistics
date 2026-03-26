@@ -28,4 +28,11 @@ class FakeDeliveryRemoteDataSource {
             )
         )
     }
+
+    suspend fun syncMarkDelivered(deliveryId: String) {
+        delay(400)
+        if (deliveryId.isBlank()) {
+            throw IllegalArgumentException("Invalid delivery id")
+        }
+    }
 }

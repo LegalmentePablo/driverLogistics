@@ -7,6 +7,7 @@ import com.example.driverlogistics.domain.model.MarkDeliveryCompletionResult
 import com.example.driverlogistics.domain.model.DeliveryStatus
 import com.example.driverlogistics.domain.usecase.MarkDeliveryAsCompletedUseCase
 import com.example.driverlogistics.domain.usecase.ObserveDeliveryByIdUseCase
+import com.example.driverlogistics.domain.usecase.ObservePendingSyncForDeliveryUseCase
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -14,6 +15,7 @@ import kotlinx.coroutines.launch
 class DetailViewModel(
     private val deliveryId: String,
     private val observeDeliveryByIdUseCase: ObserveDeliveryByIdUseCase,
+    private val observePendingSyncForDeliveryUseCase: ObservePendingSyncForDeliveryUseCase,
     private val markDeliveryAsCompletedUseCase: MarkDeliveryAsCompletedUseCase
 ) : ViewModel() {
 
@@ -22,6 +24,7 @@ class DetailViewModel(
 
     init {
         observeDelivery()
+        observePendingSyncState()
     }
 
     private fun observeDelivery() {
@@ -34,6 +37,14 @@ class DetailViewModel(
                         errorMessage = if (delivery == null) "Entrega no encontrada" else null
                     )
                 }
+            }
+        }
+    }
+
+    private fun observePendingSyncState() {
+        viewModelScope.launch {
+            observePendingSyncForDeliveryUseCase(deliveryId).collect { hasPending ->
+                _uiState.update { it.copy(wasQueuedForSync = hasPending) }
             }
         }
     }
@@ -76,6 +87,7 @@ class DetailViewModel(
 class DetailViewModelFactory(
     private val deliveryId: String,
     private val observeDeliveryByIdUseCase: ObserveDeliveryByIdUseCase,
+    private val observePendingSyncForDeliveryUseCase: ObservePendingSyncForDeliveryUseCase,
     private val markDeliveryAsCompletedUseCase: MarkDeliveryAsCompletedUseCase
 ) : ViewModelProvider.Factory {
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
@@ -84,6 +96,7 @@ class DetailViewModelFactory(
             return DetailViewModel(
                 deliveryId = deliveryId,
                 observeDeliveryByIdUseCase = observeDeliveryByIdUseCase,
+                observePendingSyncForDeliveryUseCase = observePendingSyncForDeliveryUseCase,
                 markDeliveryAsCompletedUseCase = markDeliveryAsCompletedUseCase
             ) as T
         }

@@ -9,7 +9,11 @@ interface DeliveryRepository {
 
     fun observeDeliveryById(deliveryId: String): Flow<Delivery?>
 
+    fun observePendingSyncForDelivery(deliveryId: String): Flow<Boolean>
+
     suspend fun refreshDeliveries()
+
+    suspend fun resetDeliveriesToInitialState()
 
     suspend fun markDeliveryAsCompleted(deliveryId: String): MarkDeliveryCompletionResult
 }
